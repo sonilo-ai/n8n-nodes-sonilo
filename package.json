@@ -1,0 +1,64 @@
+{
+	"name": "n8n-nodes-sonilo",
+	"version": "0.1.0",
+	"description": "n8n community node for Sonilo - generate licensed AI music and sound effects from text prompts or video",
+	"license": "MIT",
+	"homepage": "https://github.com/sonilo-ai/n8n-nodes-sonilo#readme",
+	"keywords": [
+		"n8n-community-node-package",
+		"sonilo",
+		"ai-music",
+		"music-generation",
+		"sound-effects",
+		"text-to-music",
+		"video-to-music"
+	],
+	"author": {
+		"name": "Sonilo",
+		"email": "support@sonilo.com"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/sonilo-ai/n8n-nodes-sonilo.git"
+	},
+	"bugs": {
+		"url": "https://github.com/sonilo-ai/n8n-nodes-sonilo/issues"
+	},
+	"engines": {
+		"node": ">=20"
+	},
+	"scripts": {
+		"build": "n8n-node build",
+		"build:watch": "tsc --watch",
+		"dev": "n8n-node dev",
+		"lint": "n8n-node lint",
+		"lint:fix": "n8n-node lint --fix",
+		"test": "vitest run",
+		"release": "n8n-node release",
+		"prepublishOnly": "n8n-node prerelease"
+	},
+	"files": [
+		"dist"
+	],
+	"n8n": {
+		"n8nNodesApiVersion": 1,
+		"strict": false,
+		"credentials": [
+			"dist/credentials/SoniloApi.credentials.js"
+		],
+		"nodes": [
+			"dist/nodes/Sonilo/Sonilo.node.js"
+		]
+	},
+	"devDependencies": {
+		"@n8n/node-cli": "^0.40.0",
+		"eslint": "9.32.0",
+		"prettier": "3.6.2",
+		"release-it": "^19.0.4",
+		"typescript": "5.9.2",
+		"vitest": "^3.0.0"
+	},
+	"peerDependencies": {
+		"n8n-workflow": "*"
+	}
+}
