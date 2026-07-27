@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2
+
+Republish of 0.1.1 with no code changes — 0.1.1 was published manually
+without an npm provenance attestation, which n8n's node verification
+requires. This version is published only through the GitHub Actions
+workflow so it carries a valid provenance statement.
+
 ## 0.1.1
 
 Fixes to match the real Sonilo API contract (the earlier `0.1.0` release was
