@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3
+
+Republish of 0.1.2 with the GitHub Actions workflow fixed to use npm trusted
+publishing via OIDC instead of writing an invalid placeholder npm token into
+`.npmrc`.
+
 ## 0.1.2
 
 Republish of 0.1.1 with no code changes — 0.1.1 was published manually
