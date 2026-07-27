@@ -19,13 +19,16 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/sonilo-ai/n8n-nodes-sonilo.git"
+		"url": "git+https://github.com/sonilo-ai/n8n-nodes-sonilo.git"
 	},
 	"bugs": {
 		"url": "https://github.com/sonilo-ai/n8n-nodes-sonilo/issues"
 	},
 	"engines": {
 		"node": ">=20"
+	},
+	"publishConfig": {
+		"access": "public"
 	},
 	"scripts": {
 		"build": "n8n-node build",
