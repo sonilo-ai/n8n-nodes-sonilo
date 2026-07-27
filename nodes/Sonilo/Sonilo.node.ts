@@ -127,21 +127,42 @@ export class Sonilo implements INodeType {
 					'Optional creative direction for the generation. Sonilo analyzes the video even without a prompt.',
 			},
 
-			// ---------- Text operations: Duration ----------
+			// ---------- Text to Music: Duration ----------
 			{
 				displayName: 'Duration (Seconds)',
 				name: 'duration',
 				type: 'number',
 				typeOptions: {
-					minValue: 0,
+					minValue: 5,
+					maxValue: 360,
 				},
 				default: 30,
+				required: true,
 				displayOptions: {
 					show: {
-						operation: ['textToMusic', 'textToSfx'],
+						operation: ['textToMusic'],
 					},
 				},
-				description: 'Desired output duration in seconds',
+				description: 'Desired output duration in seconds (5–360)',
+			},
+
+			// ---------- Text to Sound Effects: Duration ----------
+			{
+				displayName: 'Duration (Seconds)',
+				name: 'duration',
+				type: 'number',
+				typeOptions: {
+					minValue: 1,
+					maxValue: 180,
+				},
+				default: 10,
+				required: true,
+				displayOptions: {
+					show: {
+						operation: ['textToSfx'],
+					},
+				},
+				description: 'Desired output duration in seconds (1–180)',
 			},
 
 			// ---------- Video operations: Video URL ----------
@@ -177,7 +198,9 @@ export class Sonilo implements INodeType {
 						operation: ['videoToMusic', 'videoToSfx'],
 					},
 				},
-				description: 'Optional per-section timing and prompts for the generation',
+				description:
+					'Optional per-section timing and prompts for the generation. Sent to the API as a ' +
+					'single JSON-encoded "segments" form field.',
 				options: [
 					{
 						displayName: 'Segment',
@@ -209,7 +232,11 @@ export class Sonilo implements INodeType {
 				],
 			},
 
-			// ---------- Additional Fields ----------
+			// ---------- Additional Fields: Music operations ----------
+			// `mode` and `output_format` are only accepted by the music endpoints.
+			// The SFX endpoints are unconditionally async and have no `mode` field,
+			// and use a differently-named/valued `audio_format` field instead
+			// (see the Sound Effect operations block below).
 			{
 				displayName: 'Additional Fields',
 				name: 'additionalFields',
@@ -218,7 +245,7 @@ export class Sonilo implements INodeType {
 				default: {},
 				displayOptions: {
 					show: {
-						operation: ['textToMusic', 'videoToMusic', 'textToSfx', 'videoToSfx'],
+						operation: ['textToMusic', 'videoToMusic'],
 					},
 				},
 				options: [
@@ -233,31 +260,64 @@ export class Sonilo implements INodeType {
 								description:
 									'The API immediately returns a task ID; this node polls it until the ' +
 									'generation finishes. Recommended so long generations do not hold the ' +
-									'HTTP connection open.',
+									'HTTP connection open. Required if Output Format is set to WAV.',
 							},
 							{
-								name: 'Sync',
-								value: 'sync',
+								name: 'Stream',
+								value: 'stream',
 								description:
-									'The API holds the connection open and returns the finished result directly. ' +
-									'Sonilo may still fall back to an async task for long jobs.',
+									'The API holds the connection open and streams the finished result back ' +
+									'directly. This is the Sonilo API default. Does not support WAV output.',
 							},
 						],
 						default: 'async',
-						description: 'Whether the API should respond synchronously or as an async task',
+						description: 'Whether the API should respond synchronously (stream) or as an async task',
 					},
 					{
 						displayName: 'Output Format',
 						name: 'outputFormat',
 						type: 'options',
 						options: [
-							{ name: 'AAC', value: 'aac' },
-							{ name: 'FLAC', value: 'flac' },
-							{ name: 'MP3', value: 'mp3' },
+							{ name: 'M4A', value: 'm4a' },
 							{ name: 'WAV', value: 'wav' },
 						],
-						default: 'aac',
-						description: 'Audio container/codec for the generated output',
+						default: 'm4a',
+						description:
+							'Audio container for the generated output. WAV requires Mode to be set to Async ' +
+							'— the API rejects WAV requests made with Mode = Stream.',
+					},
+				],
+			},
+
+			// ---------- Additional Fields: Sound Effect operations ----------
+			// No `mode` field here — text-to-sfx and video-to-sfx are always async
+			// and always return { task_id, status: "processing" }.
+			{
+				displayName: 'Additional Fields',
+				name: 'additionalFields',
+				type: 'collection',
+				placeholder: 'Add Field',
+				default: {},
+				displayOptions: {
+					show: {
+						operation: ['textToSfx', 'videoToSfx'],
+					},
+				},
+				options: [
+					{
+						displayName: 'Audio Format',
+						name: 'audioFormat',
+						type: 'options',
+						options: [
+							{ name: 'WAV', value: 'wav' },
+							{ name: 'MP3', value: 'mp3' },
+							{ name: 'AAC', value: 'aac' },
+							{ name: 'FLAC', value: 'flac' },
+						],
+						default: 'wav',
+						description:
+							'Audio container/codec for the generated output. Optional — leave the field out ' +
+							'of the request entirely by not adding it here, which uses the Sonilo default.',
 					},
 				],
 			},
@@ -360,21 +420,36 @@ export class Sonilo implements INodeType {
 						segment?: Array<{ start: number; end: number; prompt?: string }>;
 					};
 					if (segmentsCollection.segment?.length) {
-						body.segments = segmentsCollection.segment.map((segment) => {
+						// The API declares `segments` as a Form(...) field, so it can only
+						// ever be a string — the array must be JSON-encoded before it goes
+						// into the multipart body.
+						const segments = segmentsCollection.segment.map((segment) => {
 							const entry: IDataObject = { start: segment.start, end: segment.end };
 							if (segment.prompt) {
 								entry.prompt = segment.prompt;
 							}
 							return entry;
 						});
+						body.segments = JSON.stringify(segments);
 					}
 				}
 
-				// Default to async so a long generation never holds the HTTP
-				// connection open; users can opt into "sync" via Additional Fields.
-				body.mode = (additionalFields.mode as string | undefined) ?? 'async';
-				if (additionalFields.outputFormat) {
-					body.output_format = additionalFields.outputFormat;
+				if (operation === 'textToMusic' || operation === 'videoToMusic') {
+					// `mode` and `output_format` only exist on the music endpoints.
+					// Default to async so a long generation never holds the HTTP
+					// connection open; users can opt into "stream" via Additional Fields.
+					body.mode = (additionalFields.mode as string | undefined) ?? 'async';
+					if (additionalFields.outputFormat) {
+						body.output_format = additionalFields.outputFormat;
+					}
+				} else {
+					// text-to-sfx / video-to-sfx: no `mode` field exists — these
+					// endpoints are unconditionally async. `audio_format` is a
+					// separate, differently-valued field from the music endpoints'
+					// `output_format`.
+					if (additionalFields.audioFormat) {
+						body.audio_format = additionalFields.audioFormat;
+					}
 				}
 
 				let responseData = await soniloApiRequest.call(this, 'POST', endpoint, body);

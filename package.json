@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-sonilo",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "n8n community node for Sonilo - generate licensed AI music and sound effects from text prompts or video",
 	"license": "MIT",
 	"homepage": "https://github.com/sonilo-ai/n8n-nodes-sonilo#readme",

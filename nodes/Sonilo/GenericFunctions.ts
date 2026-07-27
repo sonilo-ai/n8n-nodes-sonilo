@@ -10,11 +10,38 @@ import { NodeApiError, NodeOperationError, sleep } from 'n8n-workflow';
 const BASE_URL = 'https://api.sonilo.com';
 
 /** Terminal states for an async task, per GET /v1/tasks/{task_id}. */
-const TERMINAL_TASK_STATUSES = ['completed', 'failed', 'canceled'];
+const TERMINAL_TASK_STATUSES = ['succeeded', 'failed'];
 
 /**
- * Performs an authenticated request against the Sonilo API.
- * Every request is sent as JSON, which all documented Sonilo endpoints accept.
+ * Builds a multipart/form-data body from a flat field map. Every Sonilo
+ * generation endpoint declares its fields as FastAPI `Form(...)` params, so
+ * they only bind correctly when sent as multipart/form-data — a JSON body is
+ * silently ignored. Values that are objects/arrays (e.g. `segments`) must
+ * already be JSON-encoded strings by the time they reach this function, since
+ * a form field can only ever be a string.
+ */
+function buildFormData(body: IDataObject): FormData {
+	const formData = new FormData();
+
+	for (const [key, value] of Object.entries(body)) {
+		if (value === undefined || value === null) {
+			continue;
+		}
+
+		if (typeof value === 'boolean') {
+			formData.append(key, value ? 'true' : 'false');
+		} else {
+			formData.append(key, String(value));
+		}
+	}
+
+	return formData;
+}
+
+/**
+ * Performs an authenticated request against the Sonilo API. POST bodies are
+ * always sent as multipart/form-data — every Sonilo generation endpoint
+ * requires it and does not accept JSON.
  */
 export async function soniloApiRequest(
 	this: IExecuteFunctions | ILoadOptionsFunctions,
@@ -23,9 +50,11 @@ export async function soniloApiRequest(
 	body: IDataObject = {},
 	qs: IDataObject = {},
 ): Promise<IDataObject> {
+	const hasBody = Object.keys(body).length > 0;
+
 	const options = {
 		method,
-		body: Object.keys(body).length ? body : undefined,
+		body: hasBody ? buildFormData(body) : undefined,
 		qs: Object.keys(qs).length ? qs : undefined,
 		url: `${BASE_URL}${endpoint}`,
 		json: true,
@@ -53,10 +82,10 @@ export function isTaskResponse(response: IDataObject): boolean {
 
 /**
  * Polls GET /v1/tasks/{task_id} until the task reaches a terminal status
- * (`completed`, `failed`, or `canceled`), or the timeout elapses.
+ * (`succeeded` or `failed`), or the timeout elapses.
  *
- * Throws a NodeOperationError if the task fails, is canceled, or does not
- * complete within `timeoutSeconds`.
+ * Throws a NodeOperationError if the task fails or does not complete within
+ * `timeoutSeconds`.
  */
 export async function waitForSoniloTask(
 	this: IExecuteFunctions,
@@ -76,7 +105,7 @@ export async function waitForSoniloTask(
 		const status = task.status as string | undefined;
 
 		if (status && TERMINAL_TASK_STATUSES.includes(status)) {
-			if (status === 'completed') {
+			if (status === 'succeeded') {
 				return task;
 			}
 
