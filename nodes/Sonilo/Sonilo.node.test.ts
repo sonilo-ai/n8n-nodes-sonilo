@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { IExecuteFunctions } from 'n8n-workflow';
 
 import { Sonilo } from './Sonilo.node';
-import codex from './Sonilo.node.json';
+import nodeMetadata from './Sonilo.node.json';
 
 /**
  * These tests drive the node's execute() method end-to-end with a mocked
@@ -38,10 +38,13 @@ function createExecuteContext(
 }
 
 function isVisibleInRegularNodeSearch(): boolean {
-	const isAiCategory = codex?.categories?.includes('AI') === true;
+	const isAiCategory = nodeMetadata?.categories?.includes('AI') === true;
 	if (!isAiCategory) return true;
 
-	return 'subcategories' in codex && codex.subcategories?.AI?.includes('Root Nodes') === true;
+	return (
+		'subcategories' in nodeMetadata &&
+		nodeMetadata.subcategories?.AI?.includes('Root Nodes') === true
+	);
 }
 
 describe('Sonilo node metadata', () => {
