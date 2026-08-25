@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.4
+
+- Keep the main Sonilo app node visible in n8n's regular node search by
+  classifying it as `Miscellaneous` instead of `AI`. The separately generated
+  Sonilo tool remains available to AI Agent workflows through
+  `usableAsTool: true`.
+
 ## 0.1.3
 
 Republish of 0.1.2 with the GitHub Actions workflow fixed to use npm trusted
